@@ -1,5 +1,4 @@
-﻿Add-Type -AssemblyName System.Web
-$ProgressPreference = "SilentlyContinue"
+﻿$ProgressPreference = "SilentlyContinue"
 
 <#   ***EXAMPLE USAGE***
 Connect-KUMyMeter
@@ -18,7 +17,7 @@ param($Username,$Password)
 
     #Verify site is reachable and retrieve Form ID + Form Token required for login request
     try{
-        $wr = Invoke-RestMethod "https://lge-ku.com" -SessionVariable KU_Session
+        $wr = Invoke-RestMethod "https://lge-ku.com" -SessionVariable Global:KU_Session
         $FormBuildID = ($wr | Select-String -Pattern "name=""form_build_id"" value=""(.*)"" ").Matches.Groups[1].value
         $FormToken = ($wr | Select-String -Pattern "name=""form_token"" value=""(.*)"" ").Matches.Groups[1].value
     }catch{
@@ -32,8 +31,8 @@ param($Username,$Password)
         if(-not ($Username -and $Password) -or $LoginFailure){
             $LoginFailure = $False
             Write-Host "`nPlease enter your KU credentials:" -ForegroundColor Cyan
-            $Username = [System.Web.HttpUtility]::UrlEncode($(Read-Host "Username/Email"))
-            $Password = [System.Web.HttpUtility]::UrlEncode($(Read-Host "Password"))
+            $Username = [System.Net.WebUtility]::UrlEncode($(Read-Host "Username/Email"))
+            $Password = [System.Net.WebUtility]::UrlEncode($(Read-Host "Password"))
         }
 
         #Attempt login web request
@@ -63,9 +62,9 @@ param($Username,$Password)
     #Start KU account selection process
     $wr2 = Invoke-RestMethod "https://my.lge-ku.com/cs/doSwitch.sap" -WebSession $KU_Session
     $wr2 = $wr2.Substring($wr2.IndexOf("frmSelectAccount"))
-    $xsrfid = [System.Web.HttpUtility]::UrlEncode($(($wr2 | Select-String -Pattern "name=""xsrfid"" value=""(.*)""/").Matches.Groups[1].value))
-    $as_sfid = [System.Web.HttpUtility]::UrlEncode($(($wr2 | Select-String -Pattern "name=""as_sfid"" value=""(.*)"" /><input").Matches.Groups[1].value))
-    $as_fid = [System.Web.HttpUtility]::UrlEncode($(($wr2 | Select-String -Pattern "name=""as_fid"" value=""(.*)"" /").Matches.Groups[1].value))
+    $xsrfid = [System.Net.WebUtility]::UrlEncode($(($wr2 | Select-String -Pattern "name=""xsrfid"" value=""(.*)""/").Matches.Groups[1].value))
+    $as_sfid = [System.Net.WebUtility]::UrlEncode($(($wr2 | Select-String -Pattern "name=""as_sfid"" value=""(.*)"" /><input").Matches.Groups[1].value))
+    $as_fid = [System.Net.WebUtility]::UrlEncode($(($wr2 | Select-String -Pattern "name=""as_fid"" value=""(.*)"" /").Matches.Groups[1].value))
 
     #Pull all sub-accounts(places) associated with current KU account
     $KUAccounts = Invoke-RestMethod "https://my.lge-ku.com/cs/getAcctListAjax.ajax" -WebSession $KU_Session -Method Post -ContentType "application/x-www-form-urlencoded; charset=UTF-8" -Headers @{
@@ -108,12 +107,12 @@ param($Username,$Password)
     #Gather required parameters from the KU website to authenticate to the MyMeter application
     $wr5 = Invoke-RestMethod "https://my.lge-ku.com/cs/b.ee_ams_mymeter.sap" -WebSession $KU_Session
     $MyMeterAuthURL = ($wr5 | Select-String -Pattern "action=""(.*)"" ").Matches.Groups[1].value
-    $xsrfid2 = [System.Web.HttpUtility]::UrlEncode($(($wr5 | Select-String -Pattern "name=""xsrfid"" value=""(.*)""/").Matches.Groups[1].value))
-    $as_sfid2 = [System.Web.HttpUtility]::UrlEncode($(($wr5 | Select-String -Pattern "name=""as_sfid"" value=""(.*)"" /><input").Matches.Groups[1].value))
-    $as_fid2 = [System.Web.HttpUtility]::UrlEncode($(($wr5 | Select-String -Pattern "name=""as_fid"" value=""(.*)"" /").Matches.Groups[1].value))
+    $xsrfid2 = [System.Net.WebUtility]::UrlEncode($(($wr5 | Select-String -Pattern "name=""xsrfid"" value=""(.*)""/").Matches.Groups[1].value))
+    $as_sfid2 = [System.Net.WebUtility]::UrlEncode($(($wr5 | Select-String -Pattern "name=""as_sfid"" value=""(.*)"" /><input").Matches.Groups[1].value))
+    $as_fid2 = [System.Net.WebUtility]::UrlEncode($(($wr5 | Select-String -Pattern "name=""as_fid"" value=""(.*)"" /").Matches.Groups[1].value))
     $JSONRequest = $wr5.Substring($wr5.IndexOf("JSON.stringify")+15)
     $JSONRequest = $JSONRequest.Substring(0,$JSONRequest.IndexOf("})")+1)
-    $JSONRequest = [System.Web.HttpUtility]::UrlEncode($($JSONRequest | ConvertFrom-Json | ConvertTo-Json -Compress))
+    $JSONRequest = [System.Net.WebUtility]::UrlEncode($($JSONRequest | ConvertFrom-Json | ConvertTo-Json -Compress))
 
     #Authenticate to MyMeter via the external authentication URL pulled from KU above
     $wr6 = Invoke-WebRequest -UseBasicParsing -Uri $MyMeterAuthURL -WebSession $KU_Session -Method Post -ContentType "application/x-www-form-urlencoded" -Body "xsrfid=$xsrfid2&request=$JSONRequest&as_sfid=$as_sfid2&as_fid=$as_fid2"
