@@ -9,7 +9,7 @@ $MyMeters = Get-KUMyMeterMeters
 
 $MeterData = Get-KUMyMeterUsage
 
-$MeterDataAdvanced = Get-KUMyMeterUsageAdvanced -DisplayMeter $MyMeters['Meter #1234567GEN (Residential Service - All Electric) - Energy Charge'] -UsageRange "FifteenMinByDay" -UsageType = "Dollar($)"
+$MeterDataAdvanced = Get-KUMyMeterUsageAdvanced -DisplayMeter 'Meter #1234567GEN (Residential Service - All Electric) - Energy Charge' -UsageRange "FifteenMinByDay" -UsageType = "Dollar($)"
 ```
 <br/>
 <br/>
