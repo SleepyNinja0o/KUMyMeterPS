@@ -1,4 +1,5 @@
-﻿$ProgressPreference = "SilentlyContinue"
+﻿Add-Type -AssemblyName System.Web
+$ProgressPreference = "SilentlyContinue"
 
 <#   ***EXAMPLE USAGE***
 Connect-KUMyMeter
