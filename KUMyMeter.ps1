@@ -17,7 +17,7 @@ param($Username,$Password)
 
     #Verify site is reachable and retrieve Form ID + Form Token required for login request
     try{
-        $wr = irm "https://lge-ku.com" -SessionVariable KU_Session
+        $wr = Invoke-RestMethod "https://lge-ku.com" -SessionVariable KU_Session
         $FormBuildID = ($wr | Select-String -Pattern "name=""form_build_id"" value=""(.*)"" ").Matches.Groups[1].value
         $FormToken = ($wr | Select-String -Pattern "name=""form_token"" value=""(.*)"" ").Matches.Groups[1].value
     }catch{
