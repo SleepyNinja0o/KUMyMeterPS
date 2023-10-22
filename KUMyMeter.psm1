@@ -22,6 +22,7 @@ param($Username,$Password)
         $FormToken = ($wr | Select-String -Pattern "name=""form_token"" value=""(.*)"" ").Matches.Groups[1].value
     }catch{
         Write-Host "Unable to reach the LG&E KU login page!`n$($_.Exception.Message)" -ForegroundColor Red
+        return
     }
 
     #Repeat login process until it is successful
