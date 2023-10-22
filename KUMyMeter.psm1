@@ -1,7 +1,6 @@
 ﻿$ProgressPreference = "SilentlyContinue"
 
 <#   ***EXAMPLE USAGE***
-Connect-KUMyMeter
 Connect-KUMyMeter -Username "UserHere" -Password "PassHere"
 
 $Meters = Get-KUMyMeterMeters
@@ -9,7 +8,6 @@ $Meters = Get-KUMyMeterMeters
 $MeterData = Get-KUMyMeterUsage
 
 $MeterData = Get-KUMyMeterUsageAdvanced -DisplayMeter "All Usage" -UsageRange = "FifteenMinByDay" -UsageType = "Dollar($)"
-$MeterData = Get-KUMyMeterUsageAdvanced -DisplayMeter "All Usage" -UsageRange = "FifteenMinByDay" -UsageType = "Consumption(kWh)"
 #>
 
 function Connect-KUMyMeter{
@@ -32,6 +30,11 @@ param($Username,$Password)
             $LoginFailure = $False
             Write-Host "`nPlease enter your KU credentials:" -ForegroundColor Cyan
             $Username = [System.Net.WebUtility]::UrlEncode($(Read-Host "Username/Email"))
+            $Password = [System.Net.WebUtility]::UrlEncode($(Read-Host "Password"))
+        }elseif($Username -and -not ($Password)){
+            $LoginFailure = $False
+            Write-Host "`nPlease enter your KU credentials:" -ForegroundColor Cyan
+            Write-Host "Username: $Username"
             $Password = [System.Net.WebUtility]::UrlEncode($(Read-Host "Password"))
         }
 
