@@ -30,23 +30,29 @@ param($Username,$Password)
         if(-not ($Username -and $Password) -or $LoginFailure){
             $LoginFailure = $False
             Write-Host "`nPlease enter your KU credentials:" -ForegroundColor Cyan
-            $Username = [System.Net.WebUtility]::UrlEncode($(Read-Host "Username/Email"))
-            $Password = [System.Net.WebUtility]::UrlEncode($(Read-Host "Password"))
+            $Username = $(Read-Host "Username/Email")
+            $Password = $(Read-Host "Password")
         }elseif($Username -and -not ($Password)){
             $LoginFailure = $False
             Write-Host "`nPlease enter your KU credentials:" -ForegroundColor Cyan
             Write-Host "Username: $Username"
-            $Password = [System.Net.WebUtility]::UrlEncode($(Read-Host "Password"))
+            $Password = $(Read-Host "Password")
         }
 
         #Attempt login web request
+        $KUMyMeter_Login_Data = @{
+            'j_username' = $Username
+            'j_password' = $Password
+            'form_build_id' = $FormBuildID
+            'form_token' = $FormToken
+            'form_id' = 'lke_myaccount_login_form'
+            'op' = 'Submit'
+            'remote' = ''
+        }
         try{
-            $wr1 = Invoke-WebRequest -UseBasicParsing -Uri "https://my.lge-ku.com/cs/logon.sap" -Method "POST" -WebSession $KU_Session -Headers @{
-            "Accept"="text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7"
-              "Accept-Encoding"="gzip, deflate, br"
-              "Accept-Language"="en-US,en;q=0.9"
-            } -ContentType "application/x-www-form-urlencoded" -Body "j_username=$Username&j_password=$Password&form_build_id=$FormBuildID&form_token=$FormToken&form_id=lke_myaccount_login_form&op=Submit&remote="
+            $wr1 = Invoke-WebRequest -UseBasicParsing -Uri "https://my.lge-ku.com/cs/logon.sap" -Method "POST" -WebSession $KU_Session -ContentType "application/x-www-form-urlencoded" -Body $KUMyMeter_Login_Data
             Remove-Variable -Name Password -Force -ErrorAction SilentlyContinue
+            Remove-Variable -Name KUMyMeter_Login_Data -Force -ErrorAction SilentlyContinue
         }catch{
             $LoginFailure = $True
             Write-Host "Error occured during the login request!`n$($_.Exception.Message)" -ForegroundColor Red
