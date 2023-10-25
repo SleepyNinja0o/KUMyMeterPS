@@ -15,7 +15,7 @@ param($Username,$Password)
 
     #Verify site is reachable and retrieve Form ID + Form Token required for login request
     try{
-        $wr = Invoke-RestMethod "https://lge-ku.com" -SessionVariable Global:KU_Session
+        $wr = Invoke-RestMethod "https://lge-ku.com" -UseBasicParsing -SessionVariable Global:KU_Session
         $FormBuildID = ($wr | Select-String -Pattern "name=""form_build_id"" value=""(.*)"" ").Matches.Groups[1].value
         $FormToken = ($wr | Select-String -Pattern "name=""form_token"" value=""(.*)"" ").Matches.Groups[1].value
     }catch{
@@ -29,14 +29,13 @@ param($Username,$Password)
         #If username/passsword is not provided, ask user
         if($Username -and -not ($Password)){
             $LoginFailure = $False
-            Write-Host "`nPlease enter your KU credentials:" -ForegroundColor Cyan
-            Write-Host "Username: $Username"
-            $Password = $(Read-Host "Password")
+            $Creds = Get-Credential -Message "Please enter your KU credentials" -UserName $UserName
+            $Password = $Creds.GetNetworkCredential().Password
         }elseif(-not ($Username -and $Password) -or $LoginFailure){
             $LoginFailure = $False
-            Write-Host "`nPlease enter your KU credentials:" -ForegroundColor Cyan
-            $Username = $(Read-Host "Username/Email")
-            $Password = $(Read-Host "Password")
+            $Creds = Get-Credential -Message "Please enter your KU credentials"
+            $Username = $Creds.GetNetworkCredential().UserName
+            $Password = $Creds.GetNetworkCredential().Password
         }
 
         #Attempt login web request
