@@ -27,15 +27,15 @@ param($Username,$Password)
     $LoginFailure = $False
     while($True){
         #If username/passsword is not provided, ask user
-        if(-not ($Username -and $Password) -or $LoginFailure){
-            $LoginFailure = $False
-            Write-Host "`nPlease enter your KU credentials:" -ForegroundColor Cyan
-            $Username = $(Read-Host "Username/Email")
-            $Password = $(Read-Host "Password")
-        }elseif($Username -and -not ($Password)){
+        if($Username -and -not ($Password)){
             $LoginFailure = $False
             Write-Host "`nPlease enter your KU credentials:" -ForegroundColor Cyan
             Write-Host "Username: $Username"
+            $Password = $(Read-Host "Password")
+        }elseif(-not ($Username -and $Password) -or $LoginFailure){
+            $LoginFailure = $False
+            Write-Host "`nPlease enter your KU credentials:" -ForegroundColor Cyan
+            $Username = $(Read-Host "Username/Email")
             $Password = $(Read-Host "Password")
         }
 
