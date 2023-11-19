@@ -216,8 +216,10 @@ function Get-KUMyMeterAdditionalUsers{
 
     try{
         $KUMyMeter_AdditionalUsersTable = ($KUMyMeter_HTMLOb.getElementsByTagName("h4") | where {$_.innerText -match "Additional User Access"}).parentElement.getElementsByTagName("table")[0]
+        if($KUMyMeter_AdditionalUsersTable -eq $null){write-host "No additional user access exists!";return}
     }catch{
-        return "No additional user access exists!"
+        write-host "No additional user access exists!"
+        return
     }
 
     $KUMyMeter_AdditionalUsersHeaders = $KUMyMeter_AdditionalUsersTable.getElementsByTagName("th") | foreach {$_.innerText}
