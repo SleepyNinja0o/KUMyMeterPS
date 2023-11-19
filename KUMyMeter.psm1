@@ -171,7 +171,7 @@ param($Username,$Password)
 }
 
 function Get-KUMyMeterAccessLog{
-param([switch]$Get50Rows)
+param([switch]$GetMoreRows)
     if(!$KUMyMeter_UserInformation){
         $Global:KUMyMeter_UserInformation = (New-KUMyMeterWebRequest -Endpoint "/User/Information").Content
     }
@@ -180,11 +180,12 @@ param([switch]$Get50Rows)
     $KUMyMeter_HTMLOb.IHTMLDocument2_write($KUMyMeter_UserInformation)
     $KUMyMeter_RequestVerificationToken = ($KUMyMeter_HTMLOb.getElementsByTagName("input") | where {$_.name -eq "__RequestVerificationToken"})[0].value
 
-    if($Get50MoreRows.IsPresent){
-       $KUMyMeter_UserInformation = (New-KUMyMeterWebRequest -Endpoint "/User/LoadMoreActivities" -Method Post -Headers @{"x-requested-with"="XMLHttpRequest"} -ContentType "application/x-www-form-urlencoded; charset=UTF-8" -Body "rowCount=50&__RequestVerificationToken=$KUMyMeter_RequestVerificationToken" -REST).AjaxResults.Value
+    if($GetMoreRows.IsPresent){
+        if($KUMyMeterAccessLogRowCount){$KUMyMeterAccessLogRowCount += 15}else{$Global:KUMyMeterAccessLogRowCount = 15}
+       Write-Host "Retrieving $KUMyMeterAccessLogRowCount access log records..." -ForegroundColor Yellow
+       $KUMyMeter_UserInformation = (New-KUMyMeterWebRequest -Endpoint "/User/LoadMoreActivities" -Method Post -Headers @{"x-requested-with"="XMLHttpRequest"} -ContentType "application/x-www-form-urlencoded; charset=UTF-8" -Body "rowCount=$KUMyMeterAccessLogRowCount&__RequestVerificationToken=$KUMyMeter_RequestVerificationToken" -REST).AjaxResults[0].Value
        $KUMyMeter_HTMLOb = New-Object -ComObject "HTMLFile"
        $KUMyMeter_HTMLOb.IHTMLDocument2_write($KUMyMeter_UserInformation)
-       $KUMyMeter_RequestVerificationToken = ($KUMyMeter_HTMLOb.getElementsByTagName("input") | where {$_.name -eq "__RequestVerificationToken"})[0].value
     }
 
     $KUMyMeter_AccessLogTable = ($KUMyMeter_HTMLOb.getElementsByTagName("h4") | where {$_.innerText -match "Access Log"}).parentElement.getElementsByTagName("table")[0]
@@ -262,21 +263,7 @@ function Get-KUMyMeterMeters{
     #Generate current timestamp (Unix epoch) and request usage statistics from MyMeter
     $timestamp = (get-date -UFormat "%s") -replace "\."
     $timestamp = $timestamp.Substring(0,$timestamp.Length-2)
-    $wr9 = Invoke-WebRequest -UseBasicParsing -Uri "$KUMyMeter_Server/Dashboard/Table?_=$timestamp" -WebSession $KUMyMeter_Session -Headers @{
-    "authority"="mymeter.lge-ku.com"
-      "method"="GET"
-      "path"="/Dashboard/Table?_=$timestamp"
-      "scheme"="https"
-      "accept"="text/plain, */*; q=0.01"
-      "accept-encoding"="gzip, deflate, br"
-      "accept-language"="en-US,en;q=0.9"
-      "x-requested-with"="XMLHttpRequest"
-    }
-
-    #Convert Ajax web request above from a JSON string to a JSON object
-    #Then, parse out DataSource and convert to JSON object
-    $DataSource = ($wr9.Content | ConvertFrom-Json)
-    $DataSource = $DataSource.AjaxResults[0].Value
+    $DataSource = (New-KUMyMeterWebRequest -Endpoint "/Dashboard/Table?_=$timestamp" -Headers @{"x-requested-with"="XMLHttpRequest"} -REST).AjaxResults[0].Value
 
     #Find MyMeter Display Meter elements and parse out data
     $DisplayMetersStart = $DataSource.indexof("aria-label=""Display Meter""")
