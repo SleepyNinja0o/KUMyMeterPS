@@ -3,13 +3,26 @@ Use PowerShell to pull your LG&amp;E KU MyMeter usage statistics!</br>
 
 ## Examples
 ```
+#User/Pass input box will appear if credentials not provided
+Connect-KUMyMeter
+
 Connect-KUMyMeter -Username "UserHere" -Password "PassHere"
 
-$MyMeters = Get-KUMyMeterMeters
+$Meters = Get-KUMyMeterMeters
 
-$MeterData = Get-KUMyMeterUsage
+$MeterUsageData = Get-KUMyMeterUsage
 
-$MeterDataAdvanced = Get-KUMyMeterUsageAdvanced -DisplayMeter 'Meter #1234567GEN (Residential Service - All Electric) - Energy Charge' -UsageRange "FifteenMinByDay" -UsageType = "Dollar($)"
+$MeterUsageData = Get-KUMyMeterUsageAdvanced -DisplayMeter "All Usage" -UsageRange "FifteenMinByDay" -UsageType "Dollar($)"
+
+$AccessLogs = Get-KUMyMeterAccessLog
+
+$RegisteredUsers = Get-KUMyMeterRegisteredUsers
+
+$AdditionalAccessUsers = Get-KUMyMeterAdditionalUsers
+
+$MyMeterBillingHistory = Get-KUMyMeterBillingHistory
+
+$MyMeterBillingHistory = Get-KUMyMeterBillingHistory -StartDate "2023-06-01" -EndDate "2023-10-31" -DownloadToCSVFile "C:\Users\Username\Documents\MyMeterBilling.csv"
 ```
 <br/>
 <br/>
