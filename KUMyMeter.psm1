@@ -223,12 +223,7 @@ function Get-KUMyMeterAdditionalUsers{
 }
 
 function Get-KUMyMeterBillingHistory{
-param($StartDate,$EndDate)
-
-    $KUMyMeter_ManageAccounts = (New-KUMyMeterWebRequest -Endpoint "/ManageAccounts").Content
-    $KUMyMeter_HTMLOb = New-Object -ComObject "HTMLFile"
-    $KUMyMeter_HTMLOb.IHTMLDocument2_write($KUMyMeter_ManageAccounts)
-    $KUMyMeter_RequestVerificationToken = ($KUMyMeter_HTMLOb.getElementsByTagName("input") | where {$_.name -eq "__RequestVerificationToken"})[0].value
+param($StartDate,$EndDate,$DownloadToCSVFile)
 
     if($StartDate -and $EndDate){
         try{
@@ -240,16 +235,39 @@ param($StartDate,$EndDate)
             Write-Host "StartDate or EndDate was in the incorrect format! (yyyy-MM-dd)" -ForegroundColor Red
             return
         }
+    }
 
-        $KUMyMeter_Billing = (New-KUMyMeterWebRequest -Endpoint "/ManageAccounts/Transactions" -Method Post -Headers @{"x-requested-with"="XMLHttpRequest"} -ContentType "application/x-www-form-urlencoded; charset=UTF-8" `
-        -Body "accountNumber=$($KU_Accounts[$KU_Accounts_Num].accountNo)&ledgerEntryType=None&startDate=$StartDate&endDate=$EndDate&__RequestVerificationToken=$KUMyMeter_RequestVerificationToken" -REST).AjaxResults[0].Value
+    $KUMyMeter_ManageAccounts = (New-KUMyMeterWebRequest -Endpoint "/ManageAccounts").Content
+    $KUMyMeter_HTMLOb = New-Object -ComObject "HTMLFile"
+    $KUMyMeter_HTMLOb.IHTMLDocument2_write($KUMyMeter_ManageAccounts)
+    $KUMyMeter_RequestVerificationToken = ($KUMyMeter_HTMLOb.getElementsByTagName("input") | where {$_.name -eq "__RequestVerificationToken"})[0].value
+
+    if($StartDate -and $EndDate){
+        $Global:KUMyMeter_Billing_Body = "accountNumber=$($KU_Accounts[$KU_Accounts_Num].accountNo)&ledgerEntryType=None&startDate=$StartDate&endDate=$EndDate&__RequestVerificationToken=$KUMyMeter_RequestVerificationToken"
+        $Global:KUMyMeter_Billing = (New-KUMyMeterWebRequest -Endpoint "/ManageAccounts/Transactions" -Method Post -Headers @{"x-requested-with"="XMLHttpRequest"} -ContentType "application/x-www-form-urlencoded; charset=UTF-8" `
+        -Body $KUMyMeter_Billing_Body -REST).AjaxResults[0].Value
     }else{
-        $KUMyMeter_Billing = (New-KUMyMeterWebRequest -Endpoint "/ManageAccounts/Transactions" -Method Post -Headers @{"x-requested-with"="XMLHttpRequest"} -ContentType "application/x-www-form-urlencoded; charset=UTF-8" `
-        -Body "accountNumber=$($KU_Accounts[$KU_Accounts_Num].accountNo)&__RequestVerificationToken=$KUMyMeter_RequestVerificationToken" -REST).AjaxResults[0].Value
+        $Global:KUMyMeter_Billing_Body = "accountNumber=$($KU_Accounts[$KU_Accounts_Num].accountNo)&__RequestVerificationToken=$KUMyMeter_RequestVerificationToken"
+        $Global:KUMyMeter_Billing = (New-KUMyMeterWebRequest -Endpoint "/ManageAccounts/Transactions" -Method Post -Headers @{"x-requested-with"="XMLHttpRequest"} -ContentType "application/x-www-form-urlencoded; charset=UTF-8" `
+        -Body $KUMyMeter_Billing_Body -REST).AjaxResults[0].Value
     }
 
     $KUMyMeter_HTMLOb = New-Object -ComObject "HTMLFile"
     $KUMyMeter_HTMLOb.IHTMLDocument2_write($KUMyMeter_Billing)
+    
+    $KUMyMeter_CSV_RequestVerificationToken = ($KUMyMeter_HTMLOb.getElementsByTagName("input") | where {$_.name -eq "__RequestVerificationToken"}).value
+    $KUMyMeter_CSV_From = ($KUMyMeter_HTMLOb.getElementsByTagName("input") | where {$_.name -eq "From"}).value
+    $KUMyMeter_CSV_To = ($KUMyMeter_HTMLOb.getElementsByTagName("input") | where {$_.name -eq "To"}).value
+
+    if($DownloadToCSVFile){
+        $Global:KUMyMeter_Billing_CSV_Body = "SelectedLedgerEntryType=None&From=$KUMyMeter_CSV_From&To=$KUMyMeter_CSV_To&__RequestVerificationToken=$KUMyMeter_CSV_RequestVerificationToken&accountNumber=$($KU_Accounts[$KU_Accounts_Num].accountNo)"
+        try{
+            Invoke-WebRequest -UseBasicParsing -Uri "$KUMyMeter_Server/Bill/DownloadStandardBillingTableToCsv" -WebSession $KUMyMeter_Session -Method Post -ContentType "application/x-www-form-urlencoded" `
+            -Body $KUMyMeter_Billing_CSV_Body -OutFile $DownloadToCSVFile -Verbose
+        }catch{
+            Write-Host "Error occured saving billing CSV file!" -ForegroundColor Red
+        }
+    }
 
     try{
         $KUMyMeter_BillingTable = $KUMyMeter_HTMLOb.getElementsByTagName("table")[0]
