@@ -223,13 +223,30 @@ function Get-KUMyMeterAdditionalUsers{
 }
 
 function Get-KUMyMeterBillingHistory{
+param($StartDate,$EndDate)
+
     $KUMyMeter_ManageAccounts = (New-KUMyMeterWebRequest -Endpoint "/ManageAccounts").Content
     $KUMyMeter_HTMLOb = New-Object -ComObject "HTMLFile"
     $KUMyMeter_HTMLOb.IHTMLDocument2_write($KUMyMeter_ManageAccounts)
     $KUMyMeter_RequestVerificationToken = ($KUMyMeter_HTMLOb.getElementsByTagName("input") | where {$_.name -eq "__RequestVerificationToken"})[0].value
 
-    $KUMyMeter_Billing = (New-KUMyMeterWebRequest -Endpoint "/ManageAccounts/Transactions" -Method Post -Headers @{"x-requested-with"="XMLHttpRequest"} -ContentType "application/x-www-form-urlencoded; charset=UTF-8" `
-    -Body "accountNumber=$($KU_Accounts[$KU_Accounts_Num].accountNo)&__RequestVerificationToken=$KUMyMeter_RequestVerificationToken" -REST).AjaxResults[0].Value
+    if($StartDate -and $EndDate){
+        try{
+            if(!(Get-Date $StartDate -Format "yyyy-MM-dd") -or !(Get-Date $EndDate -Format "yyyy-MM-dd")){
+                Write-Host "StartDate or EndDate was in the incorrect format! (yyyy-MM-dd)" -ForegroundColor Red
+                return
+            }
+        }catch{
+            Write-Host "StartDate or EndDate was in the incorrect format! (yyyy-MM-dd)" -ForegroundColor Red
+            return
+        }
+
+        $KUMyMeter_Billing = (New-KUMyMeterWebRequest -Endpoint "/ManageAccounts/Transactions" -Method Post -Headers @{"x-requested-with"="XMLHttpRequest"} -ContentType "application/x-www-form-urlencoded; charset=UTF-8" `
+        -Body "accountNumber=$($KU_Accounts[$KU_Accounts_Num].accountNo)&ledgerEntryType=None&startDate=$StartDate&endDate=$EndDate&__RequestVerificationToken=$KUMyMeter_RequestVerificationToken" -REST).AjaxResults[0].Value
+    }else{
+        $KUMyMeter_Billing = (New-KUMyMeterWebRequest -Endpoint "/ManageAccounts/Transactions" -Method Post -Headers @{"x-requested-with"="XMLHttpRequest"} -ContentType "application/x-www-form-urlencoded; charset=UTF-8" `
+        -Body "accountNumber=$($KU_Accounts[$KU_Accounts_Num].accountNo)&__RequestVerificationToken=$KUMyMeter_RequestVerificationToken" -REST).AjaxResults[0].Value
+    }
 
     $KUMyMeter_HTMLOb = New-Object -ComObject "HTMLFile"
     $KUMyMeter_HTMLOb.IHTMLDocument2_write($KUMyMeter_Billing)
