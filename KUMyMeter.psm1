@@ -351,7 +351,7 @@ $UsageType = "Dollar($)"
         $DisplayMeter = $KUMyMeter_Display[$DisplayMeter]
     }else{
         if($KUMyMeter_Meters){
-            if($KUMyMeterMeters.Keys -contains $DisplayMeter){
+            if($KUMyMeter_Meters.Keys -contains $DisplayMeter){
                 $DisplayMeter = $KUMyMeter_Meters[$DisplayMeter]
             }elseif(-not ($KUMyMeter_Meters.Values -contains $DisplayMeter)){
                 while($True){
@@ -370,7 +370,7 @@ $UsageType = "Dollar($)"
             }
         }else{
             Get-KUMyMeterMeters | Out-Null
-            if($KUMyMeterMeters.Keys -contains $DisplayMeter){
+            if($KUMyMeter_Meters.Keys -contains $DisplayMeter){
                 $DisplayMeter = $KUMyMeter_Meters[$DisplayMeter]
             }elseif(-not ($KUMyMeter_Meters.Values -contains $DisplayMeter)){
                 while($True){
@@ -390,6 +390,10 @@ $UsageType = "Dollar($)"
         }
     }
 
+    $DataSource = (New-KUMyMeterWebRequest -Endpoint "/Dashboard/Table" -Method Post -Headers @{"x-requested-with"="XMLHttpRequest"} -ContentType "application/x-www-form-urlencoded; charset=UTF-8" `
+    -Body "SelectedUsageRange=$UsageRange&Display=$DisplayMeter&SelectedUsageType=$UsageTypeValue&__RequestVerificationToken=$RequestVerificationToken" -REST).AjaxResults[0].Value
+
+    <#
     $wr10 = Invoke-WebRequest -UseBasicParsing -Uri "$KUMyMeter_Server/Dashboard/Table" `
     -Method "POST" `
     -WebSession $KUMyMeter_Session `
@@ -407,9 +411,12 @@ $UsageType = "Dollar($)"
     } `
     -ContentType "application/x-www-form-urlencoded; charset=UTF-8" `
     -Body "SelectedUsageRange=$UsageRange&Display=$DisplayMeter&SelectedUsageType=$UsageTypeValue&__RequestVerificationToken=$RequestVerificationToken"
+    #>
 
-    $DataSource = ($wr10.Content | ConvertFrom-Json)
-    $DataSource1 = $DataSource.AjaxResults[0].Value.Substring($DataSource.AjaxResults[0].Value.indexof("""dataSource"": [")+14)
+    #$DataSource = ($wr10.Content | ConvertFrom-Json)
+    #$DataSource1 = $DataSource.AjaxResults[0].Value.Substring($DataSource.AjaxResults[0].Value.indexof("""dataSource"": [")+14)
+    
+    $DataSource1 = $DataSource.Substring($DataSource.indexof("""dataSource"": [")+14)
     $DataSource2 = $DataSource1.Substring(0,$DataSource1.IndexOf("}]")+2)
     
     if($UsageType -eq "Dollar($)"){
