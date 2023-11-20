@@ -309,21 +309,9 @@ function Get-KUMyMeterUsage{
     #Generate current timestamp (Unix epoch) and request usage statistics from MyMeter table
     $timestamp = (get-date -UFormat "%s") -replace "\."
     $timestamp = $timestamp.Substring(0,$timestamp.Length-2)
-    $wr9 = Invoke-WebRequest -UseBasicParsing -Uri "$KUMyMeter_Server/Dashboard/Table?_=$timestamp" -WebSession $KUMyMeter_Session -Headers @{
-    "authority"="mymeter.lge-ku.com"
-      "method"="GET"
-      "path"="/Dashboard/Table?_=$timestamp"
-      "scheme"="https"
-      "accept"="text/plain, */*; q=0.01"
-      "accept-encoding"="gzip, deflate, br"
-      "accept-language"="en-US,en;q=0.9"
-      "x-requested-with"="XMLHttpRequest"
-    }
+    $DataSource = (New-KUMyMeterWebRequest -Endpoint "/Dashboard/Table?_=$timestamp" -Headers @{"x-requested-with"="XMLHttpRequest"} -REST).AjaxResults[0].Value
 
-    #Convert Ajax web request above from a JSON string to a JSON object
-    #Then, parse out DataSource and convert to JSON object
-    $DataSource = ($wr9.Content | ConvertFrom-Json)
-    $DataSource1 = $DataSource.AjaxResults[0].Value.Substring($DataSource.AjaxResults[0].Value.indexof("""dataSource"": [")+14)
+    $DataSource1 = $DataSource.Substring($DataSource.indexof("""dataSource"": [")+14)
     $DataSource2 = $DataSource1.Substring(0,$DataSource1.IndexOf("}]")+2)
     $MeterData = ($DataSource2 | ConvertFrom-Json) | select @{l="Time";e={$_.rowid}},@{l="Date";e={$_.columnid}},@{l="Cost";e={$_.value}}
     return $MeterData
