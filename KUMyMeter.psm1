@@ -5,9 +5,19 @@ Connect-KUMyMeter -Username "UserHere" -Password "PassHere"
 
 $Meters = Get-KUMyMeterMeters
 
-$MeterData = Get-KUMyMeterUsage
+$MeterUsageData = Get-KUMyMeterUsage
 
-$MeterData = Get-KUMyMeterUsageAdvanced -DisplayMeter "All Usage" -UsageRange "FifteenMinByDay" -UsageType "Dollar($)"
+$MeterUsageData = Get-KUMyMeterUsageAdvanced -DisplayMeter "All Usage" -UsageRange "FifteenMinByDay" -UsageType "Dollar($)"
+
+$AccessLogs = Get-KUMyMeterAccessLog
+
+$RegisteredUsers = Get-KUMyMeterRegisteredUsers
+
+$AdditionalAccessUsers = Get-KUMyMeterAdditionalUsers
+
+$MyMeterBillingHistory = Get-KUMyMeterBillingHistory
+
+$MyMeterBillingHistory = Get-KUMyMeterBillingHistory -StartDate "2023-06-01" -EndDate "2023-10-31" -DownloadToCSVFile "C:\Users\Username\Documents\MyMeterBilling.csv"
 #>
 
 function Connect-KUMyMeter{
@@ -289,6 +299,31 @@ param($StartDate,$EndDate,$DownloadToCSVFile)
     return $KUMyMeter_BillingData
 }
 
+function Get-KUMyMeterMeters{
+    #Generate current timestamp (Unix epoch) and request usage statistics from MyMeter
+    $timestamp = (get-date -UFormat "%s") -replace "\."
+    $timestamp = $timestamp.Substring(0,$timestamp.Length-2)
+    $DataSource = (New-KUMyMeterWebRequest -Endpoint "/Dashboard/Table?_=$timestamp" -Headers @{"x-requested-with"="XMLHttpRequest"} -REST).AjaxResults[0].Value
+
+    #Find MyMeter Display Meter elements and parse out data
+    $DisplayMetersStart = $DataSource.indexof("aria-label=""Display Meter""")
+    $DisplayMetersStop = $DataSource.indexof("</select>",$DisplayMetersStart)
+    $DisplayMetersStr = $DataSource.Substring($DisplayMetersStart,$DisplayMetersStop-$DisplayMetersStart)
+    $AllDisplayMeters = $DisplayMetersStr -Split "<option "
+    $AllDisplayMeters = $AllDisplayMeters[1..($AllDisplayMeters.Length-1)]
+    
+    #Pull out Meter names and values, store into an ordered Hash Table
+    $AllDisplayMetersNames = (($AllDisplayMeters | Select-String -Pattern "value=""(.*)"">(.*)<").Matches.Groups | where {$_.Name -eq "2"}).Value
+    $AllDisplayMetersValues = (($AllDisplayMeters | Select-String -Pattern "value=""(.*)"">(.*)<").Matches.Groups | where {$_.Name -eq "1"}).Value
+    $AllDisplayMeters = [ordered]@{}
+    for($i=0;$i -lt $AllDisplayMetersNames.Length;$i++){
+        $AllDisplayMeters.Add($AllDisplayMetersNames[$i],$AllDisplayMetersValues[$i])
+    }
+
+    $Script:KUMyMeter_Meters = $AllDisplayMeters
+    return $AllDisplayMeters
+}
+
 function Get-KUMyMeterRegisteredUsers{
     if(!$KUMyMeter_UserInformation){
         $Global:KUMyMeter_UserInformation = (New-KUMyMeterWebRequest -Endpoint "/User/Information").Content
@@ -313,31 +348,6 @@ function Get-KUMyMeterRegisteredUsers{
     $KUMyMeter_RegisteredUsersRows | foreach {$rows=$_.getElementsByTagName("td");$i=0;$KUMyMeter_RegisteredUser=$KUMyMeter_RegisteredUserDataObject.psobject.Copy();$rows | foreach {$KUMyMeter_RegisteredUser.$($KUMyMeter_RegisteredUsersHeaders[$i]) = $($_.innerText);$i++};if($rows.length -ne 0){$KUMyMeter_RegisteredUsersData += $KUMyMeter_RegisteredUser}}
 
     return $KUMyMeter_RegisteredUsersData
-}
-
-function Get-KUMyMeterMeters{
-    #Generate current timestamp (Unix epoch) and request usage statistics from MyMeter
-    $timestamp = (get-date -UFormat "%s") -replace "\."
-    $timestamp = $timestamp.Substring(0,$timestamp.Length-2)
-    $DataSource = (New-KUMyMeterWebRequest -Endpoint "/Dashboard/Table?_=$timestamp" -Headers @{"x-requested-with"="XMLHttpRequest"} -REST).AjaxResults[0].Value
-
-    #Find MyMeter Display Meter elements and parse out data
-    $DisplayMetersStart = $DataSource.indexof("aria-label=""Display Meter""")
-    $DisplayMetersStop = $DataSource.indexof("</select>",$DisplayMetersStart)
-    $DisplayMetersStr = $DataSource.Substring($DisplayMetersStart,$DisplayMetersStop-$DisplayMetersStart)
-    $AllDisplayMeters = $DisplayMetersStr -Split "<option "
-    $AllDisplayMeters = $AllDisplayMeters[1..($AllDisplayMeters.Length-1)]
-    
-    #Pull out Meter names and values, store into an ordered Hash Table
-    $AllDisplayMetersNames = (($AllDisplayMeters | Select-String -Pattern "value=""(.*)"">(.*)<").Matches.Groups | where {$_.Name -eq "2"}).Value
-    $AllDisplayMetersValues = (($AllDisplayMeters | Select-String -Pattern "value=""(.*)"">(.*)<").Matches.Groups | where {$_.Name -eq "1"}).Value
-    $AllDisplayMeters = [ordered]@{}
-    for($i=0;$i -lt $AllDisplayMetersNames.Length;$i++){
-        $AllDisplayMeters.Add($AllDisplayMetersNames[$i],$AllDisplayMetersValues[$i])
-    }
-
-    $Script:KUMyMeter_Meters = $AllDisplayMeters
-    return $AllDisplayMeters
 }
 
 function Get-KUMyMeterUsage{
