@@ -10,19 +10,6 @@ $MeterData = Get-KUMyMeterUsage
 $MeterData = Get-KUMyMeterUsageAdvanced -DisplayMeter "All Usage" -UsageRange = "FifteenMinByDay" -UsageType = "Dollar($)"
 #>
 
-function Parse-String ($String,$StartStr,$EndStr){
-    if($String.IndexOf($StartStr) -eq -1){return ""}
-    $StartStrPos = $String.IndexOf($StartStr)+$StartStr.Length
-
-    if($String.IndexOf($EndStr,$StartStrPos) -eq -1){return ""}
-    $EndStrPos = $String.IndexOf($EndStr,$StartStrPos)
-
-    $ParsedStr = $String.Substring($StartStrPos,$EndStrPos-$StartStrPos)
-    if($ParsedStr -ne "" -and $ParsedStr -ne $null){return $ParsedStr}
-
-    return ""
-}
-
 function Connect-KUMyMeter{
 param($Username,$Password)
     $Global:LGEKU_Server = "https://lge-ku.com"
