@@ -7,7 +7,7 @@ $Meters = Get-KUMyMeterMeters
 
 $MeterData = Get-KUMyMeterUsage
 
-$MeterData = Get-KUMyMeterUsageAdvanced -DisplayMeter "All Usage" -UsageRange = "FifteenMinByDay" -UsageType = "Dollar($)"
+$MeterData = Get-KUMyMeterUsageAdvanced -DisplayMeter "All Usage" -UsageRange "FifteenMinByDay" -UsageType "Dollar($)"
 #>
 
 function Connect-KUMyMeter{
