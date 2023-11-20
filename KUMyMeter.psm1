@@ -45,13 +45,13 @@ param($Username,$Password)
         if($Username -and -not ($Password)){
             $LoginFailure = $False
             $Creds = Get-Credential -Message "Please enter your KU credentials" -UserName $UserName
-            $Password = $Creds.GetNetworkCredential().Password
         }elseif(-not ($Username -and $Password) -or $LoginFailure){
             $LoginFailure = $False
             $Creds = Get-Credential -Message "Please enter your KU credentials"
-            $Username = $Creds.GetNetworkCredential().UserName
-            $Password = $Creds.GetNetworkCredential().Password
         }
+
+        $Username = $Creds.GetNetworkCredential().UserName
+        $Password = $Creds.GetNetworkCredential().Password
 
         #Attempt login web request
         $KUMyMeter_Login_Data = @{
@@ -91,7 +91,7 @@ param($Username,$Password)
     $as_fid = [System.Net.WebUtility]::UrlEncode($(($wr2 | Select-String -Pattern "name=""as_fid"" value=""(.*)"" /").Matches.Groups[1].value))
 
     #Pull all sub-accounts(places) associated with current KU account
-    $KUAccounts = Invoke-RestMethod "$MyLGEKU_Server/cs/getAcctListAjax.ajax" -WebSession $KUMyMeter_Session -Method Post -ContentType "application/x-www-form-urlencoded; charset=UTF-8" -Headers @{
+    $Global:KU_Accounts = Invoke-RestMethod "$MyLGEKU_Server/cs/getAcctListAjax.ajax" -WebSession $KUMyMeter_Session -Method Post -ContentType "application/x-www-form-urlencoded; charset=UTF-8" -Headers @{
       "accept"="application/json, text/javascript, */*; q=0.01"
       "accept-encoding"="gzip, deflate, br"
       "accept-language"="en-US,en;q=0.9"
@@ -102,14 +102,14 @@ param($Username,$Password)
 
     #Loop until a valid KU account is selected
     while($True){
-        $KUAccounts | select @{l=" # ";e={$_.index}},@{l="Account #";e={$_.accountNo}},@{l="Name";e={$_.partnerName}}, `
+        $KU_Accounts | select @{l=" # ";e={$_.index}},@{l="Account #";e={$_.accountNo}},@{l="Name";e={$_.partnerName}}, `
         @{l="Address";e={"$($_.premiseAddress.houseNo) $($_.premiseAddress.street) $($_.premiseAddress.unit), $($_.premiseAddress.city), $($_.premiseAddress.state) $($_.premiseAddress.zip)"}},@{l="Status";e={$_.status}} | format-table
 
         Write-Host "Please select a KU account: " -ForegroundColor Cyan -NoNewline
-        $AccNum = Read-Host
+        $Global:KU_Accounts_Num = Read-Host
 
-        if(-not ($KUAccounts.Index.Contains([int]$AccNum))){
-            Write-Host "`n'$AccNum' is an invalid selection! Please try again!`n" -ForegroundColor Red
+        if(-not ($KU_Accounts.Index.Contains([int]$KU_Accounts_Num))){
+            Write-Host "`n'$KU_Accounts_Num' is an invalid selection! Please try again!`n" -ForegroundColor Red
             continue
         }else{
             break
@@ -123,7 +123,7 @@ param($Username,$Password)
       "Accept-Language"="en-US,en;q=0.9"
       "Origin"=$MyLGEKU_Server
       "Referer"="$MyLGEKU_Server/cs/doSwitch.sap"
-    } -ContentType "application/x-www-form-urlencoded" -Body "xsrfid=$xsrfid&accselect=$AccNum&as_sfid=$as_sfid&as_fid=$as_fid"
+    } -ContentType "application/x-www-form-urlencoded" -Body "xsrfid=$xsrfid&accselect=$KU_Accounts_Num&as_sfid=$as_sfid&as_fid=$as_fid"
     
     #Pull KU
     $wr4 = Invoke-WebRequest "$MyLGEKU_Server/cs/doStart.sap" -WebSession $KUMyMeter_Session
@@ -233,6 +233,38 @@ function Get-KUMyMeterAdditionalUsers{
     $KUMyMeter_AdditionalUsersRows | foreach {$rows=$_.getElementsByTagName("td");$i=0;$KUMyMeter_AdditionalUser=$KUMyMeter_AdditionalUserDataObject.psobject.Copy();$rows | foreach {$KUMyMeter_AdditionalUser.$($KUMyMeter_AdditionalUsersHeaders[$i]) = $($_.innerText);$i++};if($rows.length -ne 0){$KUMyMeter_AdditionalUsersData += $KUMyMeter_AdditionalUser}}
 
     return $KUMyMeter_AdditionalUsersData
+}
+
+function Get-KUMyMeterBillingHistory{
+    $KUMyMeter_ManageAccounts = (New-KUMyMeterWebRequest -Endpoint "/ManageAccounts").Content
+    $KUMyMeter_HTMLOb = New-Object -ComObject "HTMLFile"
+    $KUMyMeter_HTMLOb.IHTMLDocument2_write($KUMyMeter_ManageAccounts)
+    $KUMyMeter_RequestVerificationToken = ($KUMyMeter_HTMLOb.getElementsByTagName("input") | where {$_.name -eq "__RequestVerificationToken"})[0].value
+
+    $KUMyMeter_Billing = (New-KUMyMeterWebRequest -Endpoint "/ManageAccounts/Transactions" -Method Post -Headers @{"x-requested-with"="XMLHttpRequest"} -ContentType "application/x-www-form-urlencoded; charset=UTF-8" `
+    -Body "accountNumber=$($KU_Accounts[$KU_Accounts_Num].accountNo)&__RequestVerificationToken=$KUMyMeter_RequestVerificationToken" -REST).AjaxResults[0].Value
+
+    $KUMyMeter_HTMLOb = New-Object -ComObject "HTMLFile"
+    $KUMyMeter_HTMLOb.IHTMLDocument2_write($KUMyMeter_Billing)
+
+    try{
+        $KUMyMeter_BillingTable = $KUMyMeter_HTMLOb.getElementsByTagName("table")[0]
+        if($KUMyMeter_BillingTable -eq $null){write-host "No account billing history exists!";return}
+    }catch{
+        write-host "No account billing history exists!"
+        return
+    }
+
+    $KUMyMeter_BillingTable_Headers = $KUMyMeter_BillingTable.getElementsByTagName("th") | foreach {$_.innerText}
+    $KUMyMeter_BillingTable_Rows = $KUMyMeter_BillingTable.getElementsByTagName("tr")
+
+    $KUMyMeter_BillingDataObject = [pscustomobject]@{}
+    $KUMyMeter_BillingTable_Headers | foreach {$KUMyMeter_BillingDataObject | Add-Member -MemberType NoteProperty -Name $_ -Value ""}
+
+    $KUMyMeter_BillingData = @()
+    $KUMyMeter_BillingTable_Rows | foreach {$rows=$_.getElementsByTagName("td");$i=0;$KUMyMeter_BillingDatum=$KUMyMeter_BillingDataObject.psobject.Copy();$rows | foreach {$KUMyMeter_BillingDatum.$($KUMyMeter_BillingTable_Headers[$i]) = $($_.innerText);$i++};if($rows.length -ne 0 -and $KUMyMeter_BillingDatum.User -notmatch "View More"){$KUMyMeter_BillingData += $KUMyMeter_BillingDatum}}
+    
+    return $KUMyMeter_BillingData
 }
 
 function Get-KUMyMeterRegisteredUsers{
@@ -458,4 +490,4 @@ param(
     }
 }
 
-Export-ModuleMember -Function Connect-KUMyMeter,Get-KUMyMeterAccessLog,Get-KUMyMeterAdditionalUsers,Get-KUMyMeterRegisteredUsers,Get-KUMyMeterMeters,Get-KUMyMeterUsage,Get-KUMyMeterUsageAdvanced,New-KUMyMeterWebRequest
+Export-ModuleMember -Function Connect-KUMyMeter,Get-KUMyMeterAccessLog,Get-KUMyMeterAdditionalUsers,Get-KUMyMeterBillingHistory,Get-KUMyMeterRegisteredUsers,Get-KUMyMeterMeters,Get-KUMyMeterUsage,Get-KUMyMeterUsageAdvanced,New-KUMyMeterWebRequest
